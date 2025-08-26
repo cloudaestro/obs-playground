@@ -1,0 +1,279 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+jobs:
+  lint-python:
+    name: Lint Python Code
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install black flake8 pytest
+        find . -name "requirements.txt" -exec pip install -r {} \;
+    
+    - name: Run Black formatter check
+      run: |
+        black --check --diff apps/ gitops/
+    
+    - name: Run Flake8 linter
+      run: |
+        flake8 apps/ gitops/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 apps/ gitops/ --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
+
+  lint-yaml:
+    name: Lint YAML Files
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install yamllint
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y yamllint
+    
+    - name: Run yamllint
+      run: |
+        yamllint -d "{extends: default, rules: {line-length: {max: 120}, indentation: {spaces: 2}}}" \
+          k8s/ monitoring/ argo/ .github/
+
+  test-python:
+    name: Test Python Applications
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        find . -name "requirements.txt" -exec pip install -r {} \;
+        pip install pytest pytest-cov
+    
+    - name: Run auto-healer tests
+      run: |
+        cd apps/auto-healer
+        python -m pytest test_healer.py -v --cov=healer --cov-report=term-missing
+
+  build-images:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [lint-python, lint-yaml, test-python]
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build Portal image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./apps/portal
+        push: false
+        tags: hrt-portal:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Build Batch-sync image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./apps/batch-sync
+        push: false
+        tags: hrt-batch-sync:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Build Auto-healer image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./apps/auto-healer
+        push: false
+        tags: hrt-auto-healer:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Build Mock-slack image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./apps/mock-slack
+        push: false
+        tags: hrt-mock-slack:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  terraform:
+    name: Terraform Validation
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: 1.6.0
+    
+    - name: Terraform Format Check
+      run: |
+        cd terraform
+        terraform fmt -check -recursive
+    
+    - name: Terraform Init
+      run: |
+        cd terraform
+        terraform init
+    
+    - name: Terraform Validate
+      run: |
+        cd terraform
+        terraform validate
+    
+    - name: Terraform Plan
+      run: |
+        cd terraform
+        terraform plan -no-color
+
+  validate-k8s:
+    name: Validate Kubernetes Manifests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Kubernetes tools
+      run: |
+        # Install kubectl
+        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        chmod +x kubectl
+        sudo mv kubectl /usr/local/bin/
+        
+        # Install kustomize
+        curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+        sudo mv kustomize /usr/local/bin/
+    
+    - name: Validate base manifests
+      run: |
+        kubectl --dry-run=server --validate=true apply -k k8s/base || \
+        kubectl --dry-run=client --validate=true apply -k k8s/base
+    
+    - name: Validate dev overlay
+      run: |
+        kubectl --dry-run=server --validate=true apply -k k8s/overlays/dev || \
+        kubectl --dry-run=client --validate=true apply -k k8s/overlays/dev
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  integration-test:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    needs: [build-images]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup k3d
+      run: |
+        curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+    
+    - name: Create test cluster
+      run: |
+        k3d cluster create test-cluster --agents 1 --wait
+        kubectl config use-context k3d-test-cluster
+    
+    - name: Build and load images
+      run: |
+        docker build -t hrt-portal:test apps/portal/
+        docker build -t hrt-batch-sync:test apps/batch-sync/
+        docker build -t hrt-auto-healer:test apps/auto-healer/
+        docker build -t hrt-mock-slack:test apps/mock-slack/
+        
+        k3d image import hrt-portal:test -c test-cluster
+        k3d image import hrt-batch-sync:test -c test-cluster
+        k3d image import hrt-auto-healer:test -c test-cluster
+        k3d image import hrt-mock-slack:test -c test-cluster
+    
+    - name: Deploy applications
+      run: |
+        # Update image tags for test
+        sed -i 's/:latest/:test/g' k8s/overlays/dev/kustomization.yaml
+        
+        kubectl apply -k k8s/overlays/dev
+        
+        # Wait for deployments
+        kubectl -n portal wait --for=condition=available --timeout=300s deployment/portal
+        kubectl -n hrt-sre wait --for=condition=available --timeout=300s deployment/prometheus
+        kubectl -n hrt-sre wait --for=condition=available --timeout=300s deployment/grafana
+    
+    - name: Run basic health checks
+      run: |
+        # Port forward and test services
+        kubectl -n portal port-forward svc/portal 8080:80 &
+        kubectl -n hrt-sre port-forward svc/prometheus 9090:9090 &
+        kubectl -n hrt-sre port-forward svc/grafana 3000:3000 &
+        
+        sleep 10
+        
+        # Test portal health
+        curl -f http://localhost:8080/health
+        
+        # Test prometheus
+        curl -f http://localhost:9090/-/ready
+        
+        # Test grafana
+        curl -f http://localhost:3000/api/health
+    
+    - name: Cleanup
+      if: always()
+      run: |
+        k3d cluster delete test-cluster
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [integration-test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: staging
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to staging cluster
+      run: |
+        echo "Deploying to staging environment..."
+        echo "In a real scenario, this would deploy to a staging cluster"
+        echo "Image tags: hrt-portal:${{ github.sha }}"
