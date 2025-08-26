@@ -1,0 +1,349 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "SLO Burn Rate Dashboard",
+    "tags": ["slo", "sre", "burn-rate"],
+    "style": "dark",
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "SLO Summary",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "portal:availability_ratio * 100",
+            "legendFormat": "Availability",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "unit": "percent",
+            "min": 90,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 99
+                },
+                {
+                  "color": "green",
+                  "value": 99.9
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 6,
+          "w": 6,
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "id": 2,
+        "title": "Error Budget Remaining",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "(1 - portal:error_ratio) * 100",
+            "legendFormat": "Budget %",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 50
+                },
+                {
+                  "color": "green",
+                  "value": 90
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 6,
+          "w": 6,
+          "x": 6,
+          "y": 0
+        }
+      },
+      {
+        "id": 3,
+        "title": "Current Error Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "portal:error_ratio * 100",
+            "legendFormat": "Error Rate",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "unit": "percent",
+            "min": 0,
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 0.1
+                },
+                {
+                  "color": "red",
+                  "value": 1
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 6,
+          "w": 6,
+          "x": 12,
+          "y": 0
+        }
+      },
+      {
+        "id": 4,
+        "title": "SLO Burn Rate Alert",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "portal:error_ratio > (14.4 * 0.001)",
+            "legendFormat": "Alert Status",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "mappings": [
+              {
+                "options": {
+                  "0": {
+                    "text": "OK"
+                  },
+                  "1": {
+                    "text": "ALERT"
+                  }
+                },
+                "type": "value"
+              }
+            ],
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 1
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 6,
+          "w": 6,
+          "x": 18,
+          "y": 0
+        }
+      },
+      {
+        "id": 5,
+        "title": "Error Rate vs SLO Threshold",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "portal:error_ratio * 100",
+            "legendFormat": "Current Error Rate %",
+            "refId": "A"
+          },
+          {
+            "expr": "vector(0.1)",
+            "legendFormat": "SLO Threshold (0.1%)",
+            "refId": "B"
+          },
+          {
+            "expr": "vector(1.44)",
+            "legendFormat": "Burn Rate Threshold (1.44%)",
+            "refId": "C"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Error Rate %",
+            "min": 0
+          },
+          {
+            "show": false
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 6
+        }
+      },
+      {
+        "id": 6,
+        "title": "Availability Over Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "portal:availability_ratio * 100",
+            "legendFormat": "Availability %",
+            "refId": "A"
+          },
+          {
+            "expr": "vector(99.9)",
+            "legendFormat": "SLO Target (99.9%)",
+            "refId": "B"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Availability %",
+            "min": 95,
+            "max": 100
+          },
+          {
+            "show": false
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 6
+        }
+      },
+      {
+        "id": 7,
+        "title": "Request Success vs Failure Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(portal_requests_total{status!~\"5..\"}[5m]))",
+            "legendFormat": "Success Rate",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(portal_requests_total{status=~\"5..\"}[5m]))",
+            "legendFormat": "Failure Rate",
+            "refId": "B"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Requests/sec",
+            "min": 0
+          },
+          {
+            "show": false
+          }
+        ],
+        "gridPos": {
+          "h": 6,
+          "w": 12,
+          "x": 0,
+          "y": 14
+        }
+      },
+      {
+        "id": 8,
+        "title": "Error Budget Burn Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "portal:error_ratio / 0.001",
+            "legendFormat": "Burn Rate Multiplier",
+            "refId": "A"
+          },
+          {
+            "expr": "vector(1)",
+            "legendFormat": "Normal Burn Rate",
+            "refId": "B"
+          },
+          {
+            "expr": "vector(14.4)",
+            "legendFormat": "Alert Threshold",
+            "refId": "C"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Burn Rate Multiplier",
+            "min": 0
+          },
+          {
+            "show": false
+          }
+        ],
+        "gridPos": {
+          "h": 6,
+          "w": 12,
+          "x": 12,
+          "y": 14
+        }
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "name": "SLO Violations",
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "ALERTS{alertname=\"PortalSLOBurn\"}",
+          "iconColor": "red",
+          "titleFormat": "SLO Burn Rate Alert",
+          "textFormat": "Portal is burning error budget too fast"
+        }
+      ]
+    }
+  }
+}

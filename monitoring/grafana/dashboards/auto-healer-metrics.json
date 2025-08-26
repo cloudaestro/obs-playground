@@ -1,0 +1,264 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Auto-Healer Metrics",
+    "tags": ["auto-healer", "sre", "healing"],
+    "style": "dark",
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Healing Actions Total",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(auto_healer_actions_total)",
+            "legendFormat": "Total Actions",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "unit": "short",
+            "min": 0
+          }
+        },
+        "gridPos": {
+          "h": 6,
+          "w": 8,
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "id": 2,
+        "title": "Unhealthy Pods Detected",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "auto_healer_unhealthy_pods",
+            "legendFormat": "Unhealthy Pods",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "unit": "short",
+            "min": 0,
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 1
+                },
+                {
+                  "color": "red",
+                  "value": 3
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 6,
+          "w": 8,
+          "x": 8,
+          "y": 0
+        }
+      },
+      {
+        "id": 3,
+        "title": "Auto-Healer Errors",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(auto_healer_errors_total)",
+            "legendFormat": "Total Errors",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "unit": "short",
+            "min": 0,
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 1
+                },
+                {
+                  "color": "red",
+                  "value": 5
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 6,
+          "w": 8,
+          "x": 16,
+          "y": 0
+        }
+      },
+      {
+        "id": 4,
+        "title": "Healing Actions by Type",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(auto_healer_actions_total[5m])) by (type)",
+            "legendFormat": "{{type}}",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Actions/sec",
+            "min": 0
+          },
+          {
+            "show": false
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 6
+        }
+      },
+      {
+        "id": 5,
+        "title": "Healing Actions by Namespace",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(auto_healer_actions_total[5m])) by (namespace)",
+            "legendFormat": "{{namespace}}",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Actions/sec",
+            "min": 0
+          },
+          {
+            "show": false
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 6
+        }
+      },
+      {
+        "id": 6,
+        "title": "Unhealthy Pods Over Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "auto_healer_unhealthy_pods",
+            "legendFormat": "Unhealthy Pods",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Pod Count",
+            "min": 0
+          },
+          {
+            "show": false
+          }
+        ],
+        "gridPos": {
+          "h": 6,
+          "w": 12,
+          "x": 0,
+          "y": 14
+        }
+      },
+      {
+        "id": 7,
+        "title": "Auto-Healer Error Types",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(auto_healer_errors_total[5m])) by (error_type)",
+            "legendFormat": "{{error_type}}",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Errors/sec",
+            "min": 0
+          },
+          {
+            "show": false
+          }
+        ],
+        "gridPos": {
+          "h": 6,
+          "w": 12,
+          "x": 12,
+          "y": 14
+        }
+      },
+      {
+        "id": 8,
+        "title": "Pod Restart Counts",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "kube_pod_container_status_restarts_total",
+            "legendFormat": "{{namespace}}/{{pod}}",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Restart Count",
+            "min": 0
+          },
+          {
+            "show": false
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 24,
+          "x": 0,
+          "y": 20
+        }
+      }
+    ]
+  }
+}

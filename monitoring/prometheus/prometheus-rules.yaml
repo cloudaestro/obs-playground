@@ -1,0 +1,123 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: hrt-sre
+data:
+  portal.yml: |
+    groups:
+    - name: portal.rules
+      rules:
+      - alert: PortalHighErrorRate
+        expr: rate(portal_requests_total{status=~"5.."}[5m]) / rate(portal_requests_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Portal has high error rate"
+          description: "Portal error rate is {{ $value | humanizePercentage }} for the last 5 minutes"
+
+      - alert: PortalHighLatency
+        expr: histogram_quantile(0.95, rate(portal_request_duration_seconds_bucket[5m])) > 0.5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Portal has high latency"
+          description: "Portal 95th percentile latency is {{ $value }}s"
+
+      - alert: PortalDown
+        expr: up{job="portal"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Portal is down"
+          description: "Portal service has been down for more than 1 minute"
+
+      - alert: PortalHighRestartRate
+        expr: increase(kube_pod_container_status_restarts_total{namespace="portal"}[15m]) > 3
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Portal container restarting frequently"
+          description: "Portal pod {{ $labels.pod }} has restarted {{ $value }} times in 15 minutes"
+
+  slo.yml: |
+    groups:
+    - name: slo.rules
+      rules:
+      - record: portal:availability_ratio
+        expr: |
+          (
+            sum(rate(portal_requests_total{status!~"5.."}[5m]))
+            /
+            sum(rate(portal_requests_total[5m]))
+          )
+
+      - record: portal:error_ratio
+        expr: |
+          (
+            sum(rate(portal_requests_total{status=~"5.."}[5m]))
+            /
+            sum(rate(portal_requests_total[5m]))
+          )
+
+      - alert: PortalSLOBurn
+        expr: |
+          (
+            portal:error_ratio > (14.4 * 0.001)
+            and
+            portal:error_ratio > 0
+          )
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Portal SLO burn rate too high"
+          description: "Portal is burning SLO budget too fast. Current error ratio: {{ $value | humanizePercentage }}"
+
+  auto-healer.yml: |
+    groups:
+    - name: auto-healer.rules
+      rules:
+      - alert: AutoHealerJobFailed
+        expr: kube_job_status_failed{job_name=~"auto-healer.*"} > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Auto-healer job failed"
+          description: "Auto-healer job {{ $labels.job_name }} has failed"
+
+      - alert: UnhealthyPodsDetected
+        expr: auto_healer_unhealthy_pods > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Unhealthy pods detected"
+          description: "{{ $value }} unhealthy pods detected with high restart counts"
+
+  batch-sync.yml: |
+    groups:
+    - name: batch-sync.rules
+      rules:
+      - alert: BatchSyncJobFailed
+        expr: kube_job_status_failed{job_name=~"batch-sync.*"} > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Batch sync job failed"
+          description: "Batch sync job {{ $labels.job_name }} has failed"
+
+      - alert: BatchSyncHighErrorRate
+        expr: rate(batch_sync_errors_total[10m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Batch sync error rate too high"
+          description: "Batch sync is experiencing {{ $value }} errors per second"
