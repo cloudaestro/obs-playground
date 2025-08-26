@@ -1,0 +1,39 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: hrt-sre
+
+resources:
+- ../../base
+- ../../../monitoring/prometheus/prometheus-config.yaml
+- ../../../monitoring/prometheus/prometheus-rules.yaml
+- ../../../monitoring/prometheus/prometheus-deployment.yaml
+- ../../../monitoring/alertmanager/alertmanager-config.yaml
+- ../../../monitoring/alertmanager/alertmanager-deployment.yaml
+- ../../../monitoring/grafana/grafana-config.yaml
+- ../../../monitoring/grafana/grafana-deployment.yaml
+
+patchesStrategicMerge:
+- portal-dev-patches.yaml
+- auto-healer-dev-patches.yaml
+
+configMapGenerator:
+- name: dev-config
+  literals:
+  - ENVIRONMENT=development
+  - DEBUG=true
+  - LOG_LEVEL=debug
+
+labels:
+- pairs:
+    environment: dev
+  
+images:
+- name: hrt-portal
+  newTag: latest
+- name: hrt-batch-sync
+  newTag: latest  
+- name: hrt-auto-healer
+  newTag: latest
+- name: hrt-mock-slack
+  newTag: latest

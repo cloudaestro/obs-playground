@@ -1,0 +1,39 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: auto-healer
+  namespace: hrt-sre
+  labels:
+    app: auto-healer
+spec:
+  schedule: "*/2 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: auto-healer
+        spec:
+          serviceAccountName: auto-healer
+          restartPolicy: OnFailure
+          containers:
+          - name: auto-healer
+            image: hrt-auto-healer:latest
+            imagePullPolicy: Never
+            env:
+            - name: RESTART_THRESHOLD
+              value: "3"
+            - name: CHECK_INTERVAL
+              value: "60"
+            - name: PROMETHEUS_GATEWAY
+              value: "prometheus-pushgateway:9091"
+            - name: DRY_RUN
+              value: "false"
+            resources:
+              requests:
+                memory: "64Mi"
+                cpu: "50m"
+              limits:
+                memory: "128Mi"
+                cpu: "200m"
+          activeDeadlineSeconds: 120

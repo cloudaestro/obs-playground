@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: batch-sync
+  namespace: hrt-sre
+  labels:
+    app: batch-sync
+spec:
+  schedule: "*/5 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: batch-sync
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: batch-sync
+            image: hrt-batch-sync:latest
+            imagePullPolicy: Never
+            env:
+            - name: BATCH_SIZE
+              value: "1000"
+            - name: FAILURE_RATE
+              value: "0.1"
+            - name: PROMETHEUS_GATEWAY
+              value: "prometheus-pushgateway:9091"
+            resources:
+              requests:
+                memory: "32Mi"
+                cpu: "25m"
+              limits:
+                memory: "64Mi"
+                cpu: "100m"
+          activeDeadlineSeconds: 300
