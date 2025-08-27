@@ -9,6 +9,10 @@ terraform {
       source  = "hashicorp/local"
       version = "~> 2.2"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.4"
+    }
   }
 }
 
@@ -17,7 +21,7 @@ terraform {
 
 resource "local_file" "cluster_config" {
   filename = "${path.module}/../generated/cluster-config.yaml"
-  content  = templatefile("${path.module}/templates/cluster-config.yaml.tpl", {
+  content = templatefile("${path.module}/templates/cluster-config.yaml.tpl", {
     cluster_name     = var.cluster_name
     node_count       = var.node_count
     namespace        = var.namespace
@@ -32,11 +36,11 @@ resource "local_file" "cluster_config" {
 
 resource "local_file" "monitoring_config" {
   filename = "${path.module}/../generated/monitoring-config.yaml"
-  content  = templatefile("${path.module}/templates/monitoring-config.yaml.tpl", {
-    retention_days     = var.monitoring_retention_days
-    scrape_interval    = var.scrape_interval
+  content = templatefile("${path.module}/templates/monitoring-config.yaml.tpl", {
+    retention_days      = var.monitoring_retention_days
+    scrape_interval     = var.scrape_interval
     evaluation_interval = var.evaluation_interval
-    alert_webhook_url  = var.alert_webhook_url
+    alert_webhook_url   = var.alert_webhook_url
   })
 }
 
