@@ -169,15 +169,33 @@ jobs:
         curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
         sudo mv kustomize /usr/local/bin/
     
+    - name: Setup kind cluster
+      uses: helm/kind-action@v1.8.0
+      with:
+        cluster_name: validation-cluster
+        wait: 60s
+    
+    - name: Verify cluster
+      run: |
+        kubectl cluster-info
+        kubectl get nodes
+    
     - name: Validate base manifests
       run: |
-        kubectl --dry-run=server --validate=true apply -k k8s/base || \
-        kubectl --dry-run=client --validate=true apply -k k8s/base
+        echo "Validating base manifests with server-side dry-run..."
+        kubectl --dry-run=server --validate=true apply -k k8s/base
     
     - name: Validate dev overlay
       run: |
-        kubectl --dry-run=server --validate=true apply -k k8s/overlays/dev || \
-        kubectl --dry-run=client --validate=true apply -k k8s/overlays/dev
+        echo "Validating dev overlay with server-side dry-run..."
+        kubectl --dry-run=server --validate=true apply -k k8s/overlays/dev
+    
+    - name: Test YAML syntax with kustomize
+      run: |
+        echo "Testing YAML syntax with kustomize build..."
+        kustomize build k8s/base > /dev/null
+        kustomize build k8s/overlays/dev > /dev/null
+        echo "All YAML files have valid syntax"
 
   security-scan:
     name: Security Scan
